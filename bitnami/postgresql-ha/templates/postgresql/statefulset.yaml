@@ -32,7 +32,6 @@ spec:
         {{- if .Values.postgresql.podLabels }}
         {{- include "common.tplvalues.render" (dict "value" .Values.postgresql.podLabels "context" $) | nindent 8 }}
         {{- end }}
-      {{- if or .Values.postgresql.podAnnotations (and .Values.metrics.enabled .Values.metrics.annotations) }}
       annotations:
       {{- if .Values.postgresql.podAnnotations }}
       {{- include "common.tplvalues.render" (dict "value" .Values.postgresql.podAnnotations "context" $) | nindent 8 }}
@@ -40,6 +39,27 @@ spec:
       {{- if and .Values.metrics.enabled .Values.metrics.annotations }}
       {{- include "common.tplvalues.render" (dict "value" .Values.metrics.annotations "context" $) | nindent 8 }}
       {{- end }}
+        checksum/postgresql-hooks-scripts-configmap: {{ include (print $.Template.BasePath "/postgresql/hooks-scripts-configmap.yaml") . | sha256sum }}
+      {{- if and (or .Values.postgresql.repmgrConfiguration .Values.postgresql.configuration .Values.postgresql.pgHbaConfiguration) (not .Values.postgresql.configurationCM) }}
+        checksum/postgresql-configmap: {{ include (print $.Template.BasePath "/postgresql/configmap.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if and .Values.metrics.enabled .Values.metrics.customMetrics }}
+        checksum/metrics-configmap: {{ include (print $.Template.BasePath "/metrics-configmap.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if and .Values.postgresql.extendedConf (not .Values.postgresql.extendedConfCM) }}
+        checksum/postgresql-extended-configmap: {{ include (print $.Template.BasePath "/postgresql/extended-configmap.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if and .Values.postgresql.initdbScripts (not .Values.postgresql.initdbScriptsCM) }}
+        checksum/postgresql-initdb-scripts-configmap: {{ include (print $.Template.BasePath "/postgresql/initdb-scripts-configmap.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if (include "postgresql-ha.postgresqlCreateSecret" .) }}
+        checksum/postgresql-secrets: {{ include (print $.Template.BasePath "/postgresql/secrets.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if .Values.ldap.enabled }}
+        checksum/ldap-secrets: {{ include (print $.Template.BasePath "/ldap-secrets.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if (include "postgresql-ha.createTlsSecret" . ) }}
+        checksum/tls-secrets: {{ include (print $.Template.BasePath "/tls-secrets.yaml") . | sha256sum }}
       {{- end }}
     spec:
       {{- include "postgresql-ha.image.pullSecrets" . | nindent 6 }}

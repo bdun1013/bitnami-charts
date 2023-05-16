@@ -32,8 +32,21 @@ spec:
         {{- if .Values.pgpool.podLabels }}
         {{- include "common.tplvalues.render" (dict "value" .Values.pgpool.podLabels "context" $) | nindent 8 }}
         {{- end }}
-      {{- if .Values.pgpool.podAnnotations }}
-      annotations: {{- include "common.tplvalues.render" (dict "value" .Values.pgpool.podAnnotations "context" $) | nindent 8 }}
+      {{- if or (.Values.pgpool.podAnnotations) (and .Values.pgpool.configuration (not .Values.pgpool.configurationCM)) (and .Values.pgpool.initdbScripts (not .Values.pgpool.initdbScriptsCM)) (include "postgresql-ha.pgpoolCreateSecret" .) (and (not .Values.pgpool.customUsersSecret) .Values.pgpool.customUsers) }}
+      annotations:
+      {{- include "common.tplvalues.render" (dict "value" .Values.pgpool.podAnnotations "context" $) | nindent 8 }}
+      {{- if and .Values.pgpool.configuration (not .Values.pgpool.configurationCM) }}
+        checksum/pgpool-configmap: {{ include (print $.Template.BasePath "/pgpool/configmap.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if and .Values.pgpool.initdbScripts (not .Values.pgpool.initdbScriptsCM) }}
+        checksum/pgpool-initdb-scripts-configmap: {{ include (print $.Template.BasePath "/pgpool/initdb-scripts-configmap.yaml") . | sha256sum }}
+      {{- end }}
+      {{- if (include "postgresql-ha.pgpoolCreateSecret" .) }}
+        checksum/pgpool-secrets: {{ include (print $.Template.BasePath "/pgpool/secrets") . | sha256sum }}
+      {{- end }}
+      {{- if and (not .Values.pgpool.customUsersSecret) .Values.pgpool.customUsers }}
+        checksum/pgpool-custom-users-secrets: {{ include (print $.Template.BasePath "/pgpool/custom-users-secrets") . | sha256sum }}
+      {{- end }}
       {{- end }}
     spec:
       {{- include "postgresql-ha.image.pullSecrets" . | nindent 6 }}
